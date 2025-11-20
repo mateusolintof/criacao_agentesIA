@@ -1,0 +1,628 @@
+{
+  "dashboards": [
+    {
+      "id": "overview",
+      "name": "Agente IA - Overview",
+      "description": "Dashboard principal com visão geral de todas as métricas",
+      "refresh_interval": "30s",
+      "panels": [
+        {
+          "id": "conversations_total",
+          "title": "Total de Conversas (24h)",
+          "type": "stat",
+          "datasource": "Prometheus",
+          "query": "increase(agent_conversations_total[24h])",
+          "unit": "conversas",
+          "thresholds": {
+            "green": 0,
+            "yellow": 1000,
+            "red": 5000
+          }
+        },
+        {
+          "id": "conversations_rate",
+          "title": "Taxa de Conversas",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "queries": [
+            {
+              "expr": "rate(agent_conversations_total[5m])",
+              "legend": "Conversas/min"
+            }
+          ],
+          "y_axis": {
+            "unit": "conv/min",
+            "min": 0
+          },
+          "time_range": "Last 6 hours"
+        },
+        {
+          "id": "active_conversations",
+          "title": "Conversas Ativas (Agora)",
+          "type": "stat",
+          "datasource": "Prometheus",
+          "query": "agent_active_conversations",
+          "unit": "conversas",
+          "color": "blue"
+        },
+        {
+          "id": "response_time_p95",
+          "title": "Tempo de Resposta (p95)",
+          "type": "gauge",
+          "datasource": "Prometheus",
+          "query": "histogram_quantile(0.95, rate(agent_response_time_seconds_bucket[5m]))",
+          "unit": "seconds",
+          "max": 5,
+          "thresholds": {
+            "green": [0, 2],
+            "yellow": [2, 3],
+            "red": [3, 5]
+          }
+        },
+        {
+          "id": "error_rate",
+          "title": "Taxa de Erros",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "queries": [
+            {
+              "expr": "rate(agent_errors_total[5m]) / rate(agent_requests_total[5m]) * 100",
+              "legend": "Error Rate %"
+            }
+          ],
+          "y_axis": {
+            "unit": "percent",
+            "max": 10
+          },
+          "alert_threshold": 5
+        },
+        {
+          "id": "csat_score",
+          "title": "CSAT Score (7 dias)",
+          "type": "stat",
+          "datasource": "PostgreSQL",
+          "query": "SELECT AVG(csat_score) FROM feedback WHERE timestamp > NOW() - INTERVAL '7 days'",
+          "unit": "/5.0",
+          "decimals": 2,
+          "thresholds": {
+            "red": [0, 3.5],
+            "yellow": [3.5, 4.0],
+            "green": [4.0, 5.0]
+          }
+        },
+        {
+          "id": "resolution_rate",
+          "title": "Taxa de Resolução",
+          "type": "pie",
+          "datasource": "PostgreSQL",
+          "query": "SELECT resolution, COUNT(*) FROM feedback WHERE timestamp > NOW() - INTERVAL '24 hours' GROUP BY resolution",
+          "legend": ["Completo", "Parcial", "Não Resolvido"]
+        },
+        {
+          "id": "uptime",
+          "title": "Uptime (30 dias)",
+          "type": "stat",
+          "datasource": "Prometheus",
+          "query": "avg_over_time(up{job=\"agent-api\"}[30d]) * 100",
+          "unit": "%",
+          "decimals": 2,
+          "color": "green"
+        },
+        {
+          "id": "leads_created",
+          "title": "Leads Criados (24h)",
+          "type": "stat",
+          "datasource": "PostgreSQL",
+          "query": "SELECT COUNT(*) FROM leads WHERE created_at > NOW() - INTERVAL '24 hours'",
+          "unit": "leads",
+          "color": "purple"
+        },
+        {
+          "id": "top_intents",
+          "title": "Top 10 Intenções",
+          "type": "bar",
+          "datasource": "PostgreSQL",
+          "query": "SELECT intent, COUNT(*) as count FROM conversations WHERE timestamp > NOW() - INTERVAL '7 days' GROUP BY intent ORDER BY count DESC LIMIT 10"
+        }
+      ]
+    },
+    {
+      "id": "performance",
+      "name": "Performance & Latência",
+      "description": "Métricas técnicas de performance",
+      "panels": [
+        {
+          "id": "response_time_percentiles",
+          "title": "Tempo de Resposta (Percentis)",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "queries": [
+            {
+              "expr": "histogram_quantile(0.50, rate(agent_response_time_seconds_bucket[5m]))",
+              "legend": "p50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, rate(agent_response_time_seconds_bucket[5m]))",
+              "legend": "p95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, rate(agent_response_time_seconds_bucket[5m]))",
+              "legend": "p99"
+            }
+          ],
+          "y_axis": {
+            "unit": "seconds"
+          }
+        },
+        {
+          "id": "llm_latency",
+          "title": "Latência LLM",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "queries": [
+            {
+              "expr": "histogram_quantile(0.95, rate(llm_request_duration_seconds_bucket[5m]))",
+              "legend": "LLM p95"
+            }
+          ]
+        },
+        {
+          "id": "database_latency",
+          "title": "Latência Database",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "queries": [
+            {
+              "expr": "histogram_quantile(0.95, rate(db_query_duration_seconds_bucket[5m]))",
+              "legend": "DB p95"
+            }
+          ]
+        },
+        {
+          "id": "cache_hit_rate",
+          "title": "Cache Hit Rate",
+          "type": "gauge",
+          "datasource": "Prometheus",
+          "query": "rate(redis_cache_hits[5m]) / (rate(redis_cache_hits[5m]) + rate(redis_cache_misses[5m])) * 100",
+          "unit": "%",
+          "max": 100,
+          "thresholds": {
+            "red": [0, 50],
+            "yellow": [50, 70],
+            "green": [70, 100]
+          }
+        },
+        {
+          "id": "throughput",
+          "title": "Throughput",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "queries": [
+            {
+              "expr": "rate(agent_requests_total[1m])",
+              "legend": "Requests/sec"
+            }
+          ]
+        },
+        {
+          "id": "concurrent_users",
+          "title": "Usuários Concorrentes",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "queries": [
+            {
+              "expr": "agent_concurrent_users",
+              "legend": "Concurrent Users"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "business_metrics",
+      "name": "Métricas de Negócio",
+      "description": "KPIs de negócio e conversão",
+      "panels": [
+        {
+          "id": "leads_by_score",
+          "title": "Leads por Score",
+          "type": "pie",
+          "datasource": "PostgreSQL",
+          "query": "SELECT CASE WHEN lead_score >= 70 THEN 'Qualificado' WHEN lead_score >= 40 THEN 'Médio' ELSE 'Baixo' END as category, COUNT(*) FROM leads WHERE created_at > NOW() - INTERVAL '7 days' GROUP BY category"
+        },
+        {
+          "id": "conversion_funnel",
+          "title": "Funil de Conversão",
+          "type": "funnel",
+          "datasource": "PostgreSQL",
+          "stages": [
+            {
+              "name": "Visitantes",
+              "query": "SELECT COUNT(DISTINCT user_id) FROM conversations WHERE created_at > NOW() - INTERVAL '7 days'"
+            },
+            {
+              "name": "Engajados (>2 msgs)",
+              "query": "SELECT COUNT(DISTINCT user_id) FROM conversations WHERE message_count >= 2 AND created_at > NOW() - INTERVAL '7 days'"
+            },
+            {
+              "name": "Leads Criados",
+              "query": "SELECT COUNT(*) FROM leads WHERE created_at > NOW() - INTERVAL '7 days'"
+            },
+            {
+              "name": "Demos Agendadas",
+              "query": "SELECT COUNT(*) FROM demos WHERE created_at > NOW() - INTERVAL '7 days'"
+            }
+          ]
+        },
+        {
+          "id": "csat_trend",
+          "title": "CSAT Trend",
+          "type": "graph",
+          "datasource": "PostgreSQL",
+          "query": "SELECT DATE(timestamp), AVG(csat_score) FROM feedback WHERE timestamp > NOW() - INTERVAL '30 days' GROUP BY DATE(timestamp) ORDER BY DATE(timestamp)",
+          "y_axis": {
+            "min": 0,
+            "max": 5
+          }
+        },
+        {
+          "id": "nps_score",
+          "title": "NPS Score",
+          "type": "stat",
+          "datasource": "PostgreSQL",
+          "query": "SELECT (COUNT(*) FILTER (WHERE nps_score >= 9) * 100.0 / COUNT(*) - COUNT(*) FILTER (WHERE nps_score <= 6) * 100.0 / COUNT(*)) FROM feedback WHERE timestamp > NOW() - INTERVAL '30 days'",
+          "unit": "NPS",
+          "decimals": 0,
+          "thresholds": {
+            "red": [-100, 0],
+            "yellow": [0, 50],
+            "green": [50, 100]
+          }
+        },
+        {
+          "id": "avg_conversation_length",
+          "title": "Duração Média da Conversa",
+          "type": "stat",
+          "datasource": "PostgreSQL",
+          "query": "SELECT AVG(duration_seconds) FROM conversations WHERE created_at > NOW() - INTERVAL '24 hours'",
+          "unit": "seconds",
+          "decimals": 0
+        },
+        {
+          "id": "messages_per_conversation",
+          "title": "Mensagens por Conversa",
+          "type": "histogram",
+          "datasource": "PostgreSQL",
+          "query": "SELECT message_count, COUNT(*) FROM conversations WHERE created_at > NOW() - INTERVAL '7 days' GROUP BY message_count ORDER BY message_count"
+        }
+      ]
+    },
+    {
+      "id": "ai_quality",
+      "name": "Qualidade da IA",
+      "description": "Métricas específicas de IA e qualidade das respostas",
+      "panels": [
+        {
+          "id": "intent_accuracy",
+          "title": "Intent Accuracy",
+          "type": "gauge",
+          "datasource": "PostgreSQL",
+          "query": "SELECT AVG(CASE WHEN intent_correct = true THEN 1 ELSE 0 END) * 100 FROM intent_validation WHERE timestamp > NOW() - INTERVAL '7 days'",
+          "unit": "%",
+          "max": 100,
+          "thresholds": {
+            "red": [0, 80],
+            "yellow": [80, 90],
+            "green": [90, 100]
+          }
+        },
+        {
+          "id": "hallucination_rate",
+          "title": "Taxa de Alucinação",
+          "type": "stat",
+          "datasource": "PostgreSQL",
+          "query": "SELECT COUNT(*) FILTER (WHERE hallucination_detected = true) * 100.0 / COUNT(*) FROM responses WHERE timestamp > NOW() - INTERVAL '7 days'",
+          "unit": "%",
+          "decimals": 2,
+          "thresholds": {
+            "green": [0, 2],
+            "yellow": [2, 5],
+            "red": [5, 100]
+          }
+        },
+        {
+          "id": "guardrail_violations",
+          "title": "Violações de Guardrails",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "queries": [
+            {
+              "expr": "rate(agent_guardrail_violations_total[5m])",
+              "legend": "Violations/min"
+            }
+          ]
+        },
+        {
+          "id": "fallback_rate",
+          "title": "Taxa de Fallback",
+          "type": "stat",
+          "datasource": "Prometheus",
+          "query": "rate(agent_fallback_responses_total[24h]) / rate(agent_responses_total[24h]) * 100",
+          "unit": "%",
+          "thresholds": {
+            "green": [0, 5],
+            "yellow": [5, 10],
+            "red": [10, 100]
+          }
+        },
+        {
+          "id": "handoff_rate",
+          "title": "Taxa de Handoff para Humano",
+          "type": "stat",
+          "datasource": "Prometheus",
+          "query": "rate(agent_handoff_total[24h]) / rate(agent_conversations_total[24h]) * 100",
+          "unit": "%",
+          "decimals": 1
+        },
+        {
+          "id": "tool_usage",
+          "title": "Uso de Tools",
+          "type": "bar",
+          "datasource": "Prometheus",
+          "query": "sum by (tool_name) (increase(agent_tool_calls_total[24h]))"
+        },
+        {
+          "id": "response_relevance",
+          "title": "Relevância das Respostas",
+          "type": "gauge",
+          "datasource": "PostgreSQL",
+          "query": "SELECT AVG(relevance_score) * 20 FROM feedback WHERE timestamp > NOW() - INTERVAL '7 days' AND relevance_score IS NOT NULL",
+          "unit": "%",
+          "max": 100
+        }
+      ]
+    },
+    {
+      "id": "costs",
+      "name": "Custos",
+      "description": "Monitoramento de custos e uso de recursos",
+      "panels": [
+        {
+          "id": "total_cost_today",
+          "title": "Custo Total (Hoje)",
+          "type": "stat",
+          "datasource": "PostgreSQL",
+          "query": "SELECT SUM(cost_usd) FROM costs WHERE DATE(timestamp) = CURRENT_DATE",
+          "unit": "USD",
+          "decimals": 2,
+          "prefix": "$"
+        },
+        {
+          "id": "cost_trend",
+          "title": "Trend de Custos",
+          "type": "graph",
+          "datasource": "PostgreSQL",
+          "queries": [
+            {
+              "query": "SELECT DATE(timestamp), SUM(cost_usd) FROM costs WHERE timestamp > NOW() - INTERVAL '30 days' GROUP BY DATE(timestamp) ORDER BY DATE(timestamp)",
+              "legend": "Custo Diário"
+            }
+          ],
+          "y_axis": {
+            "unit": "USD"
+          }
+        },
+        {
+          "id": "cost_by_service",
+          "title": "Custo por Serviço",
+          "type": "pie",
+          "datasource": "PostgreSQL",
+          "query": "SELECT service, SUM(cost_usd) FROM costs WHERE timestamp > NOW() - INTERVAL '7 days' GROUP BY service"
+        },
+        {
+          "id": "tokens_used",
+          "title": "Tokens Usados (24h)",
+          "type": "stat",
+          "datasource": "Prometheus",
+          "query": "increase(llm_tokens_total[24h])",
+          "unit": "tokens",
+          "format": "short"
+        },
+        {
+          "id": "cost_per_conversation",
+          "title": "Custo por Conversa",
+          "type": "stat",
+          "datasource": "PostgreSQL",
+          "query": "SELECT SUM(cost_usd) / COUNT(DISTINCT conversation_id) FROM costs WHERE timestamp > NOW() - INTERVAL '7 days'",
+          "unit": "USD",
+          "decimals": 4,
+          "prefix": "$"
+        },
+        {
+          "id": "projected_monthly_cost",
+          "title": "Projeção Mensal",
+          "type": "stat",
+          "datasource": "PostgreSQL",
+          "query": "SELECT (SUM(cost_usd) / EXTRACT(DAY FROM NOW())) * 30 FROM costs WHERE DATE_TRUNC('month', timestamp) = DATE_TRUNC('month', NOW())",
+          "unit": "USD",
+          "decimals": 0,
+          "prefix": "$",
+          "thresholds": {
+            "green": [0, 10000],
+            "yellow": [10000, 15000],
+            "red": [15000, 999999]
+          }
+        }
+      ]
+    },
+    {
+      "id": "infrastructure",
+      "name": "Infraestrutura",
+      "description": "Métricas de infraestrutura e recursos",
+      "panels": [
+        {
+          "id": "cpu_usage",
+          "title": "CPU Usage",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "queries": [
+            {
+              "expr": "avg(rate(container_cpu_usage_seconds_total{service=\"agent-api\"}[5m])) * 100",
+              "legend": "CPU %"
+            }
+          ],
+          "y_axis": {
+            "unit": "percent",
+            "max": 100
+          }
+        },
+        {
+          "id": "memory_usage",
+          "title": "Memory Usage",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "queries": [
+            {
+              "expr": "container_memory_usage_bytes{service=\"agent-api\"} / container_memory_max_bytes{service=\"agent-api\"} * 100",
+              "legend": "Memory %"
+            }
+          ]
+        },
+        {
+          "id": "redis_connections",
+          "title": "Redis Connections",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "queries": [
+            {
+              "expr": "redis_connected_clients",
+              "legend": "Connections"
+            }
+          ]
+        },
+        {
+          "id": "db_connections",
+          "title": "Database Connections",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "queries": [
+            {
+              "expr": "pg_stat_database_numbackends{datname=\"agente_ia\"}",
+              "legend": "Active Connections"
+            }
+          ]
+        },
+        {
+          "id": "api_instances",
+          "title": "API Instances",
+          "type": "stat",
+          "datasource": "Prometheus",
+          "query": "count(up{job=\"agent-api\"} == 1)",
+          "unit": "instances",
+          "color": "blue"
+        },
+        {
+          "id": "network_io",
+          "title": "Network I/O",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "queries": [
+            {
+              "expr": "rate(container_network_receive_bytes_total{service=\"agent-api\"}[5m])",
+              "legend": "Inbound"
+            },
+            {
+              "expr": "rate(container_network_transmit_bytes_total{service=\"agent-api\"}[5m])",
+              "legend": "Outbound"
+            }
+          ],
+          "y_axis": {
+            "unit": "bytes/sec"
+          }
+        }
+      ]
+    },
+    {
+      "id": "errors",
+      "name": "Erros e Exceções",
+      "description": "Monitoramento de erros e debug",
+      "panels": [
+        {
+          "id": "error_rate_by_type",
+          "title": "Erros por Tipo",
+          "type": "bar",
+          "datasource": "Prometheus",
+          "query": "sum by (error_type) (increase(agent_errors_total[24h]))"
+        },
+        {
+          "id": "top_errors",
+          "title": "Top 10 Erros",
+          "type": "table",
+          "datasource": "PostgreSQL",
+          "query": "SELECT error_message, COUNT(*) as count FROM errors WHERE timestamp > NOW() - INTERVAL '24 hours' GROUP BY error_message ORDER BY count DESC LIMIT 10",
+          "columns": ["Error", "Count"]
+        },
+        {
+          "id": "http_status_codes",
+          "title": "HTTP Status Codes",
+          "type": "stacked_area",
+          "datasource": "Prometheus",
+          "queries": [
+            {
+              "expr": "rate(http_requests_total{job=\"agent-api\", status_code=~\"2..\"}[5m])",
+              "legend": "2xx"
+            },
+            {
+              "expr": "rate(http_requests_total{job=\"agent-api\", status_code=~\"4..\"}[5m])",
+              "legend": "4xx"
+            },
+            {
+              "expr": "rate(http_requests_total{job=\"agent-api\", status_code=~\"5..\"}[5m])",
+              "legend": "5xx"
+            }
+          ]
+        },
+        {
+          "id": "integration_errors",
+          "title": "Erros de Integração",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "queries": [
+            {
+              "expr": "rate(integration_errors_total{integration=\"crm\"}[5m])",
+              "legend": "CRM"
+            },
+            {
+              "expr": "rate(integration_errors_total{integration=\"llm\"}[5m])",
+              "legend": "LLM"
+            },
+            {
+              "expr": "rate(integration_errors_total{integration=\"email\"}[5m])",
+              "legend": "Email"
+            }
+          ]
+        },
+        {
+          "id": "timeout_rate",
+          "title": "Taxa de Timeouts",
+          "type": "stat",
+          "datasource": "Prometheus",
+          "query": "rate(agent_timeouts_total[1h]) / rate(agent_requests_total[1h]) * 100",
+          "unit": "%",
+          "thresholds": {
+            "green": [0, 1],
+            "yellow": [1, 3],
+            "red": [3, 100]
+          }
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "version": "1.0",
+    "created_date": "2024-01-15",
+    "last_updated": "2024-01-15",
+    "owner": "Platform Team",
+    "notes": "Dashboards para monitoramento do Agente de IA"
+  }
+}

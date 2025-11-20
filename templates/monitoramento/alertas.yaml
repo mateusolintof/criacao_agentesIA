@@ -1,0 +1,544 @@
+# Configuração de Alertas - Agente de IA
+# Sistema: Prometheus AlertManager
+# Versão: 1.0
+
+groups:
+  # ==================== ALERTAS CRÍTICOS (P0) ====================
+  # Resposta: 15 minutos
+  # On-call: Sim
+
+  - name: critical_alerts
+    interval: 30s
+    rules:
+      - alert: SystemDown
+        expr: up{job="agent-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          priority: P0
+          team: platform
+        annotations:
+          summary: "Sistema de Agente IA está DOWN"
+          description: "Nenhuma instância do agent-api está respondendo há mais de 1 minuto."
+          runbook: "https://docs.company.com/runbooks/system-down"
+          action: "1. Verificar logs\n2. Verificar pods/containers\n3. Escalar para infra se necessário"
+
+      - alert: HighErrorRate
+        expr: |
+          (rate(agent_errors_total[5m]) / rate(agent_requests_total[5m])) * 100 > 10
+        for: 5m
+        labels:
+          severity: critical
+          priority: P0
+          team: engineering
+        annotations:
+          summary: "Taxa de erros muito alta ({{ $value | humanizePercentage }})"
+          description: "Taxa de erros acima de 10% nos últimos 5 minutos."
+          impact: "Usuários não conseguem usar o agente adequadamente"
+          action: "Investigar logs de erro imediatamente"
+
+      - alert: DatabaseDown
+        expr: pg_up{database="agente_ia"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          priority: P0
+          team: platform
+        annotations:
+          summary: "Database PostgreSQL está inacessível"
+          description: "Conexão com PostgreSQL falhou."
+          impact: "Sistema não pode funcionar sem database"
+          action: "1. Verificar status do PostgreSQL\n2. Verificar rede\n3. Verificar credenciais"
+
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          priority: P0
+          team: platform
+        annotations:
+          summary: "Redis cache está inacessível"
+          description: "Conexão com Redis falhou."
+          impact: "Performance degradada, tokens podem expirar prematuramente"
+          action: "Verificar status do Redis"
+
+      - alert: CriticalIntegrationDown
+        expr: |
+          up{job="integration", integration="crm"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          priority: P0
+          team: engineering
+        annotations:
+          summary: "Integração crítica (CRM) está indisponível"
+          description: "Integração com CRM está falhando há 5+ minutos."
+          impact: "Leads não estão sendo criados no CRM"
+          action: "1. Verificar status da API do CRM\n2. Ativar fallback (fila de retry)\n3. Notificar stakeholders"
+
+      - alert: HighResponseTimeP99
+        expr: |
+          histogram_quantile(0.99, rate(agent_response_time_seconds_bucket[5m])) > 10
+        for: 10m
+        labels:
+          severity: critical
+          priority: P0
+          team: engineering
+        annotations:
+          summary: "Tempo de resposta p99 muito alto ({{ $value }}s)"
+          description: "99% das requisições estão levando mais de 10 segundos."
+          impact: "Usuários experimentando timeouts e frustração"
+          action: "Investigar gargalos (LLM, DB, cache)"
+
+  # ==================== ALERTAS ALTOS (P1) ====================
+  # Resposta: 2 horas
+  # On-call: Sim (durante horário comercial)
+
+  - name: high_priority_alerts
+    interval: 1m
+    rules:
+      - alert: HighResponseTimeP95
+        expr: |
+          histogram_quantile(0.95, rate(agent_response_time_seconds_bucket[5m])) > 3
+        for: 15m
+        labels:
+          severity: high
+          priority: P1
+          team: engineering
+        annotations:
+          summary: "Tempo de resposta p95 acima do SLA ({{ $value }}s)"
+          description: "95% das requisições estão levando mais de 3 segundos (SLA: 2s)."
+          impact: "Experiência do usuário degradada"
+          action: "Investigar performance (slow queries, LLM latency, etc)"
+
+      - alert: ElevatedErrorRate
+        expr: |
+          (rate(agent_errors_total[5m]) / rate(agent_requests_total[5m])) * 100 > 5
+        for: 10m
+        labels:
+          severity: high
+          priority: P1
+          team: engineering
+        annotations:
+          summary: "Taxa de erros elevada ({{ $value | humanizePercentage }})"
+          description: "Taxa de erros entre 5-10% nos últimos 10 minutos."
+          action: "Revisar logs de erro e identificar padrão"
+
+      - alert: LowIntentAccuracy
+        expr: |
+          (sum(rate(agent_intent_correct[1h])) / sum(rate(agent_intent_total[1h]))) * 100 < 85
+        for: 1h
+        labels:
+          severity: high
+          priority: P1
+          team: ml
+        annotations:
+          summary: "Acurácia de intent baixa ({{ $value | humanizePercentage }})"
+          description: "Intent accuracy abaixo de 85% na última hora."
+          impact: "Agente não está entendendo usuários corretamente"
+          action: "1. Revisar prompts\n2. Analisar conversas com baixa acurácia\n3. Considerar fine-tuning"
+
+      - alert: HighHallucinationRate
+        expr: |
+          (rate(agent_hallucination_detected[1h]) / rate(agent_responses_total[1h])) * 100 > 5
+        for: 30m
+        labels:
+          severity: high
+          priority: P1
+          team: ml
+        annotations:
+          summary: "Taxa de alucinação alta ({{ $value | humanizePercentage }})"
+          description: "Mais de 5% das respostas contêm possível alucinação."
+          impact: "Agente fornecendo informações incorretas"
+          action: "1. Revisar respostas\n2. Ajustar temperatura\n3. Melhorar guardrails"
+
+      - alert: LowCSATScore
+        expr: |
+          avg_over_time(csat_score[24h]) < 3.5
+        for: 24h
+        labels:
+          severity: high
+          priority: P1
+          team: product
+        annotations:
+          summary: "CSAT score baixo ({{ $value }}/5.0)"
+          description: "CSAT médio abaixo de 3.5 nas últimas 24h."
+          impact: "Usuários insatisfeitos com o agente"
+          action: "1. Analisar feedback negativo\n2. Identificar padrões\n3. Planejar melhorias"
+
+      - alert: HighMemoryUsage
+        expr: |
+          (container_memory_usage_bytes{service="agent-api"} / container_memory_max_bytes{service="agent-api"}) * 100 > 85
+        for: 10m
+        labels:
+          severity: high
+          priority: P1
+          team: platform
+        annotations:
+          summary: "Uso de memória alto ({{ $value | humanizePercentage }})"
+          description: "Uso de memória acima de 85%."
+          impact: "Risco de OOM (Out of Memory)"
+          action: "1. Verificar memory leaks\n2. Considerar scale up\n3. Otimizar uso de memória"
+
+      - alert: HighCPUUsage
+        expr: |
+          avg(rate(container_cpu_usage_seconds_total{service="agent-api"}[5m])) * 100 > 80
+        for: 15m
+        labels:
+          severity: high
+          priority: P1
+          team: platform
+        annotations:
+          summary: "Uso de CPU alto ({{ $value | humanizePercentage }})"
+          description: "CPU acima de 80% por 15+ minutos."
+          impact: "Performance degradada"
+          action: "1. Verificar processos pesados\n2. Considerar scale out\n3. Otimizar código"
+
+  # ==================== ALERTAS MÉDIOS (P2) ====================
+  # Resposta: 1 dia útil
+  # On-call: Não
+
+  - name: medium_priority_alerts
+    interval: 5m
+    rules:
+      - alert: ModerateErrorRate
+        expr: |
+          (rate(agent_errors_total[5m]) / rate(agent_requests_total[5m])) * 100 > 2
+        for: 30m
+        labels:
+          severity: medium
+          priority: P2
+          team: engineering
+        annotations:
+          summary: "Taxa de erros moderada ({{ $value | humanizePercentage }})"
+          description: "Taxa de erros entre 2-5% nos últimos 30 minutos."
+          action: "Monitorar e investigar se persistir"
+
+      - alert: HighFallbackRate
+        expr: |
+          (rate(agent_fallback_responses_total[1h]) / rate(agent_responses_total[1h])) * 100 > 10
+        for: 1h
+        labels:
+          severity: medium
+          priority: P2
+          team: ml
+        annotations:
+          summary: "Taxa de fallback alta ({{ $value | humanizePercentage }})"
+          description: "Mais de 10% das respostas usando fallback."
+          impact: "Agente não conseguindo responder adequadamente"
+          action: "Analisar perguntas que causam fallback e melhorar prompts/knowledge base"
+
+      - alert: HighHandoffRate
+        expr: |
+          (rate(agent_handoff_total[1h]) / rate(agent_conversations_total[1h])) * 100 > 25
+        for: 2h
+        labels:
+          severity: medium
+          priority: P2
+          team: product
+        annotations:
+          summary: "Taxa de handoff alta ({{ $value | humanizePercentage }})"
+          description: "Mais de 25% das conversas sendo transferidas para humano."
+          impact: "Agente não conseguindo resolver autonomamente"
+          action: "Analisar motivos de handoff e melhorar capacidades do agente"
+
+      - alert: LowCacheHitRate
+        expr: |
+          (rate(redis_cache_hits[5m]) / (rate(redis_cache_hits[5m]) + rate(redis_cache_misses[5m]))) * 100 < 60
+        for: 1h
+        labels:
+          severity: medium
+          priority: P2
+          team: engineering
+        annotations:
+          summary: "Taxa de cache hit baixa ({{ $value | humanizePercentage }})"
+          description: "Cache hit rate abaixo de 60%."
+          impact: "Mais chamadas ao LLM, custo e latência maiores"
+          action: "Revisar estratégia de caching"
+
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          pg_stat_database_numbackends{datname="agente_ia"} > 80
+        for: 10m
+        labels:
+          severity: medium
+          priority: P2
+          team: platform
+        annotations:
+          summary: "Pool de conexões do database quase esgotado ({{ $value }}/100)"
+          description: "Número alto de conexões abertas."
+          impact: "Risco de esgotar pool e bloquear novas requisições"
+          action: "Investigar connection leaks ou aumentar pool size"
+
+      - alert: DiskSpaceRunningLow
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
+        for: 30m
+        labels:
+          severity: medium
+          priority: P2
+          team: platform
+        annotations:
+          summary: "Espaço em disco baixo ({{ $value | humanizePercentage }} disponível)"
+          description: "Menos de 20% de espaço em disco disponível."
+          impact: "Risco de falhas por falta de espaço"
+          action: "Limpar logs antigos ou aumentar disco"
+
+  # ==================== ALERTAS DE CUSTO ====================
+
+  - name: cost_alerts
+    interval: 1h
+    rules:
+      - alert: DailyCostExceeded
+        expr: |
+          sum(increase(cost_usd[24h])) > 500
+        for: 1h
+        labels:
+          severity: medium
+          priority: P2
+          team: product
+        annotations:
+          summary: "Custo diário acima do esperado (${{ $value }})"
+          description: "Custo das últimas 24h excedeu $500 (meta: $400/dia)."
+          impact: "Orçamento mensal pode ser excedido"
+          action: "1. Analisar uso de tokens\n2. Verificar cache\n3. Otimizar prompts"
+
+      - alert: MonthlyProjectedCostHigh
+        expr: |
+          (sum(increase(cost_usd[24h])) * 30) > 15000
+        for: 6h
+        labels:
+          severity: high
+          priority: P1
+          team: product
+        annotations:
+          summary: "Projeção mensal de custo alta (${{ $value }})"
+          description: "Baseado no custo atual, mês fechará acima de $15k (budget: $12k)."
+          impact: "Orçamento será estourado"
+          action: "Ação urgente para reduzir custos"
+
+      - alert: UnusualTokenSpike
+        expr: |
+          rate(llm_tokens_total[30m]) > (avg_over_time(rate(llm_tokens_total[30m])[7d]) * 2)
+        for: 1h
+        labels:
+          severity: medium
+          priority: P2
+          team: engineering
+        annotations:
+          summary: "Spike incomum no uso de tokens"
+          description: "Uso de tokens 2x acima da média dos últimos 7 dias."
+          impact: "Custo inesperado"
+          action: "Investigar causa do spike (bug? ataque? tráfego legítimo?)"
+
+  # ==================== ALERTAS DE NEGÓCIO ====================
+
+  - name: business_alerts
+    interval: 1h
+    rules:
+      - alert: LowConversionRate
+        expr: |
+          (sum(increase(leads_created[24h])) / sum(increase(conversations_total[24h]))) * 100 < 10
+        for: 24h
+        labels:
+          severity: medium
+          priority: P2
+          team: product
+        annotations:
+          summary: "Taxa de conversão baixa ({{ $value | humanizePercentage }})"
+          description: "Menos de 10% das conversas resultaram em lead nas últimas 24h."
+          impact: "Baixo ROI do agente"
+          action: "Analisar jornada e otimizar qualificação"
+
+      - alert: LowEngagementRate
+        expr: |
+          (sum(increase(conversations_engaged[24h])) / sum(increase(conversations_total[24h]))) * 100 < 40
+        for: 24h
+        labels:
+          severity: medium
+          priority: P2
+          team: product
+        annotations:
+          summary: "Taxa de engajamento baixa ({{ $value | humanizePercentage }})"
+          description: "Menos de 40% dos usuários enviaram mais de 2 mensagens."
+          impact: "Usuários não estão engajando com o agente"
+          action: "Melhorar mensagem inicial e fluxo de conversa"
+
+      - alert: NPSDropped
+        expr: |
+          nps_score < 30
+        for: 7d
+        labels:
+          severity: high
+          priority: P1
+          team: product
+        annotations:
+          summary: "NPS baixo ({{ $value }})"
+          description: "NPS caiu abaixo de 30 nos últimos 7 dias."
+          impact: "Usuários não estão satisfeitos e não recomendariam"
+          action: "Análise urgente de feedback e plano de ação"
+
+  # ==================== ALERTAS DE SEGURANÇA ====================
+
+  - name: security_alerts
+    interval: 1m
+    rules:
+      - alert: HighRateLimitViolations
+        expr: |
+          rate(rate_limit_exceeded_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: high
+          priority: P1
+          team: security
+        annotations:
+          summary: "Violações de rate limit frequentes"
+          description: "Mais de 10 violações/min de rate limit."
+          impact: "Possível ataque de DDoS ou scraping"
+          action: "1. Verificar IPs\n2. Considerar block temporário\n3. Investigar padrão"
+
+      - alert: PromptInjectionAttempts
+        expr: |
+          rate(prompt_injection_detected[5m]) > 1
+        for: 5m
+        labels:
+          severity: high
+          priority: P1
+          team: security
+        annotations:
+          summary: "Tentativas de prompt injection detectadas"
+          description: "Múltiplas tentativas de prompt injection."
+          impact: "Tentativa de manipular comportamento do agente"
+          action: "1. Verificar IPs\n2. Bloquear se persistir\n3. Revisar guardrails"
+
+      - alert: UnauthorizedAccessAttempts
+        expr: |
+          rate(http_requests_total{status_code="401"}[5m]) > 20
+        for: 5m
+        labels:
+          severity: high
+          priority: P1
+          team: security
+        annotations:
+          summary: "Múltiplas tentativas de acesso não autorizado"
+          description: "Mais de 20 tentativas/min com 401."
+          impact: "Possível tentativa de brute force"
+          action: "Verificar IPs e considerar block"
+
+# ==================== CONFIGURAÇÕES DE ROTEAMENTO ====================
+
+route:
+  receiver: default
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+  routes:
+    # Alertas críticos -> PagerDuty + Slack
+    - match:
+        severity: critical
+      receiver: pagerduty-critical
+      continue: true
+
+    - match:
+        severity: critical
+      receiver: slack-critical
+
+    # Alertas altos -> Slack + Email
+    - match:
+        severity: high
+      receiver: slack-high
+      continue: true
+
+    - match:
+        severity: high
+      receiver: email-high
+
+    # Alertas médios -> Slack apenas
+    - match:
+        severity: medium
+      receiver: slack-medium
+
+# ==================== RECEIVERS ====================
+
+receivers:
+  - name: default
+    slack_configs:
+      - api_url: '{{ SLACK_WEBHOOK_URL }}'
+        channel: '#alerts-general'
+
+  - name: pagerduty-critical
+    pagerduty_configs:
+      - service_key: '{{ PAGERDUTY_SERVICE_KEY }}'
+        description: '{{ .GroupLabels.alertname }}: {{ .CommonAnnotations.summary }}'
+
+  - name: slack-critical
+    slack_configs:
+      - api_url: '{{ SLACK_WEBHOOK_URL }}'
+        channel: '#alerts-critical'
+        title: ':fire: CRITICAL ALERT'
+        text: |
+          *Alert:* {{ .GroupLabels.alertname }}
+          *Summary:* {{ .CommonAnnotations.summary }}
+          *Description:* {{ .CommonAnnotations.description }}
+          *Impact:* {{ .CommonAnnotations.impact }}
+          *Action:* {{ .CommonAnnotations.action }}
+          *Runbook:* {{ .CommonAnnotations.runbook }}
+        send_resolved: true
+
+  - name: slack-high
+    slack_configs:
+      - api_url: '{{ SLACK_WEBHOOK_URL }}'
+        channel: '#alerts-high'
+        title: ':warning: HIGH PRIORITY ALERT'
+        text: |
+          *Alert:* {{ .GroupLabels.alertname }}
+          *Summary:* {{ .CommonAnnotations.summary }}
+          *Action:* {{ .CommonAnnotations.action }}
+        send_resolved: true
+
+  - name: slack-medium
+    slack_configs:
+      - api_url: '{{ SLACK_WEBHOOK_URL }}'
+        channel: '#alerts-medium'
+        title: ':information_source: Medium Alert'
+        text: '*{{ .GroupLabels.alertname }}:* {{ .CommonAnnotations.summary }}'
+        send_resolved: true
+
+  - name: email-high
+    email_configs:
+      - to: 'team@company.com'
+        from: 'alerts@company.com'
+        smarthost: 'smtp.company.com:587'
+        auth_username: '{{ SMTP_USER }}'
+        auth_password: '{{ SMTP_PASSWORD }}'
+        headers:
+          Subject: '[HIGH] {{ .GroupLabels.alertname }}'
+
+# ==================== INHIBITION RULES ====================
+# Previne alertas redundantes
+
+inhibit_rules:
+  # Se sistema está down, inibir outros alertas de performance
+  - source_match:
+      alertname: 'SystemDown'
+    target_match:
+      severity: 'high'
+    equal: ['instance']
+
+  # Se database está down, inibir alertas de connection pool
+  - source_match:
+      alertname: 'DatabaseDown'
+    target_match:
+      alertname: 'DatabaseConnectionPoolExhausted'
+    equal: ['instance']
+
+# ==================== METADATA ====================
+
+metadata:
+  version: "1.0"
+  created: "2024-01-15"
+  owner: "Platform Team"
+  documentation: "https://docs.company.com/monitoring/alerts"

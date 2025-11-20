@@ -1,0 +1,11 @@
+# Simple Chatbot - AGNO Framework
+# Dependências mínimas para executar o exemplo
+
+# Framework AGNO
+agno>=0.1.0
+
+# LLM Provider
+openai>=1.50.0
+
+# Environment variables
+python-dotenv>=1.0.0
