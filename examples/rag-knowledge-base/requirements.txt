@@ -1,0 +1,15 @@
+# AGNO Framework
+agno>=0.1.0
+
+# LLM Provider
+openai>=1.50.0
+
+# RAG Components
+chromadb>=0.4.18  # Vector database
+sentence-transformers>=2.2.2  # Embeddings
+pypdf>=3.17.0  # PDF processing
+python-dotenv>=1.0.0
+
+# Document Processing
+beautifulsoup4>=4.12.2  # HTML processing
+markdown>=3.5.1  # Markdown processing

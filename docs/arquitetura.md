@@ -1,14 +1,14 @@
 # Arquitetura do Framework
 
-**Versão:** 1.0
-**Data:** 2024-01-15
+**Versão:** 2.0
+**Data:** 2025-11-20
 **Status:** Ativo
 
 ---
 
 ## 1. Visão Geral
 
-Este framework fornece uma arquitetura completa e metodologia padronizada para desenvolvimento de **Agentes de IA para Atendimento Comercial**, com foco em escalabilidade, manutenibilidade e qualidade.
+Este framework fornece uma arquitetura completa e metodologia padronizada para desenvolvimento de **Agentes de IA para Atendimento Comercial** usando **AGNO** (single-agent) e **CrewAI** (multi-agent), com foco em escalabilidade, manutenibilidade e qualidade.
 
 ### 1.1 Objetivos Arquiteturais
 
@@ -17,6 +17,20 @@ Este framework fornece uma arquitetura completa e metodologia padronizada para d
 - **Manutenibilidade:** Código limpo, testável e bem documentado
 - **Confiabilidade:** Tratamento robusto de erros e fallbacks
 - **Observabilidade:** Logs, métricas e traces completos
+
+### 1.2 Seleção de Framework
+
+O framework escolhido depende da complexidade do projeto:
+
+**AGNO (Single-Agent):**
+- **Quando usar:** 1-3 casos de uso, escopo focado, chatbot direto
+- **Vantagens:** Simplicidade, menor overhead, setup rápido
+- **Exemplos:** Chatbot comercial, RAG Q&A, API integration
+
+**CrewAI (Multi-Agent):**
+- **Quando usar:** 4+ domínios de conhecimento, workflows complexos, delegação
+- **Vantagens:** Especialização, escalabilidade, processo hierárquico
+- **Exemplos:** Sistema de atendimento multi-departamental
 
 ---
 
@@ -106,28 +120,47 @@ Este framework fornece uma arquitetura completa e metodologia padronizada para d
 
 **Componentes:**
 
-**BaseAgent (Classe Abstrata):**
+**AGNO Agent Pattern (Single-Agent):**
 ```python
-BaseAgent
-├── _load_prompts()         # Carrega prompts
-├── _initialize_tools()     # Inicializa ferramentas
-├── process()               # Processa input
-├── validate_input()        # Validação
-├── apply_guardrails()      # Guardrails
-└── log_interaction()       # Logging
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.db.sqlite import SqliteDb
+from agno.tools.toolkit import Toolkit
+
+# Agente AGNO
+Agent
+├── name                    # Nome do agente
+├── model                   # LLM (OpenAIChat)
+├── db                      # Memória (SqliteDb/PostgresDb)
+├── instructions            # Lista de instruções
+├── tools                   # Lista de Toolkits
+├── add_history_to_context  # Memória de conversação
+└── run()                   # Executa com session_id
 ```
 
-**Specialized Agents:**
-- **Router Agent:** Identifica intenção e roteia
-- **Sales Agent:** Qualificação e vendas
-- **Support Agent:** Suporte técnico
-- **Product Agent:** Informações de produto
+**CrewAI Multi-Agent Pattern:**
+```python
+from crewai import Agent, Task, Crew, Process, LLM
+
+# Estrutura CrewAI
+Crew
+├── agents: List[Agent]     # Lista de agentes especializados
+├── tasks: List[Task]       # Tarefas a executar
+├── process                 # hierarchical ou sequential
+├── manager_llm             # LLM para o manager
+└── kickoff()               # Inicia execução
+```
+
+**Specialized Agents (CrewAI):**
+- **Manager Agent:** Coordena e delega (allow_delegation=True)
+- **Sales Agent:** Qualificação e vendas (allow_delegation=False)
+- **Support Agent:** Suporte técnico (allow_delegation=False)
+- **Product Agent:** Informações de produto (allow_delegation=False)
 
 **Padrões:**
-- Template Method (BaseAgent)
-- Strategy (diferentes LLMs)
-- Chain of Responsibility (guardrails)
-- Observer (logging/monitoring)
+- **AGNO:** Toolkit pattern, session management, streaming responses
+- **CrewAI:** Hierarchical process, task delegation, planning mode
+- **Ambos:** Strategy (diferentes LLMs), Observer (logging)
 
 ### 3.3 Domain Layer
 
@@ -174,9 +207,10 @@ class Interaction:
 - Adapter pattern para abstração
 
 **Memory:**
-- **Short-term:** Redis (conversação ativa)
-- **Long-term:** PostgreSQL (histórico)
-- **Vector Store:** ChromaDB/Pinecone (RAG)
+- **AGNO SqliteDb:** Desenvolvimento e MVPs (session-based)
+- **AGNO PostgresDb:** Produção (escalável, multi-tenant)
+- **Vector Store:** ChromaDB (RAG), Pinecone (escalável)
+- **Cache:** Redis (reduz latência, compartilha sessions)
 
 **Integrations:**
 - CRM Client (Salesforce, HubSpot)

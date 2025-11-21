@@ -150,7 +150,7 @@ X-API-Version: 1.0
   "id": "550e8400-e29b-41d4-a716-446655440000",
   "status": "created",
   "lead_id": "LEAD-2024-001",
-  "created_at": "2024-01-15T14:30:00Z",
+  "created_at": "2025-11-20T14:30:00Z",
   "message": "Lead criado com sucesso"
 }
 ```
@@ -398,7 +398,7 @@ Product List: api:erp:products:all -> TTL 3600s (1h)
 **Formato:**
 ```json
 {
-  "timestamp": "2024-01-15T14:30:00Z",
+  "timestamp": "2025-11-20T14:30:00Z",
   "level": "info",
   "service": "crm_integration",
   "action": "create_lead",

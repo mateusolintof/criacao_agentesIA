@@ -1,27 +1,26 @@
 # Exemplo: Simple Chatbot com AGNO
 
-Este é um exemplo simples de um chatbot de atendimento usando o framework **AGNO** com um único agente.
+Este é um exemplo simples de um chatbot de atendimento usando **AGNO** (framework de agentes single-agent).
+
+**Atualizado:** 2025-11-20
 
 ## O que este exemplo demonstra
 
-- Implementação básica de agente único com AGNO
-- Memória persistente com SQLite
-- Configuração de instruções (prompts no formato AGNO)
-- Loop interativo de chat
-- Validação de inputs e guardrails
-- Estatísticas de uso
+- ✅ Implementação básica com AGNO Agent
+- ✅ Memória persistente com SQLite
+- ✅ Contexto de conversação mantido automaticamente
+- ✅ Loop interativo de chat
+- ✅ Streaming de respostas
+- ✅ Configuração via variáveis de ambiente
 
 ## Estrutura
 
 ```
 simple-chatbot/
 ├── README.md          # Este arquivo
-├── main.py            # Ponto de entrada com AGNO Agent
-├── agent_config.py    # Configuração do agente
-├── prompts.py         # Instruções no formato AGNO (lista)
-├── simple_memory.py   # Implementação de memória (referência)
+├── main.py            # Ponto de entrada com AGNO
 ├── .env.example       # Exemplo de variáveis de ambiente
-└── requirements.txt   # Dependências específicas
+└── tmp/               # Criado automaticamente para memória SQLite
 ```
 
 ## Setup
@@ -30,27 +29,23 @@ simple-chatbot/
 
 ```bash
 # Na raiz do projeto Python_Structure
-pip install -r requirements.txt
-
-# Ou apenas as dependências essenciais do AGNO
 pip install agno openai python-dotenv
+
+# Ou instalar tudo
+pip install -r requirements.txt
 ```
 
 ### 2. Configurar variáveis de ambiente
 
 ```bash
-# Copiar exemplo (se não existir)
+cd examples/simple-chatbot
 cp .env.example .env
-
 # Editar .env e adicionar sua OPENAI_API_KEY
-# Exemplo:
-# OPENAI_API_KEY=sk-...
 ```
 
 ### 3. Executar
 
 ```bash
-cd examples/simple-chatbot
 python main.py
 ```
 
@@ -58,167 +53,152 @@ python main.py
 
 1. O chatbot inicia e apresenta uma mensagem de boas-vindas
 2. Digite suas mensagens no prompt
-3. O agente AGNO responde mantendo o contexto da conversa (memória persistente)
-4. Digite 'sair' ou 'quit' para encerrar e ver estatísticas
+3. O agente responde mantendo o contexto da conversa
+4. Digite 'sair' ou 'quit' para encerrar
 
 ## Exemplo de interação
 
 ```
-==============================================================
-  CHATBOT SIMPLES - AGNO Framework
-==============================================================
+🤖  CHATBOT SIMPLES - AGNO Framework
+============================================================
 
 Digite suas mensagens e pressione Enter.
 Para sair, digite 'sair' ou 'quit'.
 
-Você: Olá, quero conhecer seus produtos
-Agente: Olá! Ficamos felizes em apresentar nossos produtos.
-Temos 3 soluções principais:
-
-1. CRM Enterprise (R$ 199/mês) - Gestão completa de vendas
-2. AI Assistant (R$ 499/mês) - Automação inteligente
-3. Analytics Suite (R$ 299/mês) - Business Intelligence
+👤 Você: Olá, quero saber sobre seus produtos
+🤖 Agente: Olá! Temos 3 produtos principais:
+- CRM Enterprise (R$ 199/mês) - Gestão completa de vendas
+- AI Assistant (R$ 499/mês) - Automação inteligente
+- Analytics Suite (R$ 299/mês) - Business Intelligence
 
 Qual deles te interessa mais?
 
-Você: Me fale sobre o AI Assistant
-Agente: O AI Assistant é nossa plataforma de automação com IA
-generativa. Por R$ 499/mês você tem acesso a automações
-inteligentes para seu negócio. Posso te dar mais detalhes?
+👤 Você: Quanto custa o CRM?
+🤖 Agente: O CRM Enterprise custa R$ 199 por usuário/mês e inclui gestão de pipeline, automação de follow-ups e relatórios em tempo real. Quantos usuários você tem no time?
 
-Você: sair
-
-Encerrando conversa. Até logo!
-
-Estatísticas da sessão:
-   - Mensagens: 2
-   - Taxa de sucesso: 100.0%
-   - Tempo médio: 1.45s
+👤 Você: sair
+👋 Encerrando conversa. Até logo!
 ```
 
-## Arquitetura AGNO
+## Principais recursos do AGNO
 
-Este exemplo usa o padrão moderno do AGNO:
+### Memória Persistente
+- Usa SQLite para armazenar histórico
+- Mantém contexto entre reinicializações
+- Configurável via `num_history_runs`
 
-```python
-# 1. Criar agente com memória
-agent = Agent(
-    name="simple_chatbot",
-    model=OpenAIChat(id="gpt-4o"),
-    instructions=[...],  # Lista de instruções
-    storage=SqliteDb(...),  # Memória persistente
-    add_history_to_messages=True,  # Contexto histórico
-    num_history_messages=10
-)
+### Streaming
+- Respostas aparecem em tempo real
+- Melhor experiência do usuário
+- Ativado com `stream=True`
 
-# 2. Executar com session_id
-response = agent.run(
-    message,
-    session_id=session_id,
-    stream=False
-)
-```
+### Session Management
+- Cada usuário tem seu próprio `session_id`
+- Conversas isoladas por sessão
+- Histórico mantido automaticamente
 
 ## Personalização
 
 ### Mudar o comportamento do agente
 
-Edite `prompts.py` para modificar as instruções:
-- Role e contexto
-- Produtos e preços
-- Personalidade e tom
-- Constraints e regras
+Edite a lista `instructions` em `main.py`:
 
 ```python
-PROMPTS = {
-    "instructions": [
-        "Você é um assistente...",
-        "Seja amigável mas profissional",
-        # Adicione suas instruções
-    ]
-}
+instructions = [
+    "Você é um [PERSONALIDADE]",
+    "Seus produtos são: [LISTAR]",
+    "Seja sempre [COMPORTAMENTO]",
+]
 ```
 
-### Mudar modelo LLM
-
-Edite `agent_config.py`:
+### Ajustar memória
 
 ```python
-AGENT_CONFIG = {
-    "model": "gpt-4o",  # ou "gpt-4-turbo", "gpt-3.5-turbo"
-    "num_history_messages": 10,
-    # ...
-}
+agent = Agent(
+    ...
+    num_history_runs=10,  # Mais contexto
+    add_history_to_context=True,
+)
 ```
 
-### Adicionar ferramentas (tools)
+### Mudar modelo
 
-Veja o exemplo `api-integration-agno/` para aprender a criar e usar ferramentas AGNO.
+No `.env`:
+```bash
+OPENAI_MODEL=gpt-4o  # ou gpt-4o-mini, gpt-4-turbo
+```
+
+## Arquitetura AGNO
+
+```
+User Input
+    │
+    ▼
+Agent.run(input, session_id)
+    │
+    ├─> Recupera histórico do SQLite
+    ├─> Adiciona instruções
+    ├─> Envia para LLM (OpenAI)
+    ├─> Salva no SQLite
+    │
+    ▼
+Response (streaming)
+```
 
 ## Próximos passos
 
-1. **Comece aqui** - Entenda o básico do AGNO com este exemplo
-2. **Multi-Agent** - Veja `multi-agent-sales/` para sistemas com múltiplos agentes (CrewAI)
-3. **RAG** - Explore `rag-knowledge-base/` para base de conhecimento com busca semântica
-4. **API Integration** - Veja `api-integration-agno/` para conectar com APIs externas
-
-## Conceitos AGNO
-
-### Memória Persistente
-- Usa SQLite por padrão (desenvolvimento)
-- Troque para PostgreSQL em produção
-- Mantém histórico entre sessões
-- Session ID identifica cada conversa
-
-### Instruções (Instructions)
-- Lista de strings ao invés de prompt único
-- Mais modular e fácil de versionar
-- Cada item é uma regra ou contexto
-
-### Guardrails
-- Validação de input (tamanho, conteúdo malicioso)
-- Validação de output (informações sensíveis)
-- Implementado no wrapper SimpleChatbot
+1. ✅ Explore este exemplo simples
+2. Veja `multi-agent-sales/` para sistema com **CrewAI**
+3. Veja `rag-knowledge-base/` para **RAG com AGNO**
+4. Veja `api-integration-agno/` para **integrações com APIs**
 
 ## Troubleshooting
 
-**Erro: OPENAI_API_KEY não configurada**
-```bash
-# Configure no arquivo .env
-echo "OPENAI_API_KEY=sk-your-key" > .env
+**Erro: OpenAI API Key não configurada**
+```
+Solução: Configure OPENAI_API_KEY no arquivo .env
 ```
 
 **Erro: Module 'agno' not found**
-```bash
-pip install agno
+```
+Solução: Execute pip install agno
 ```
 
-**Agente não mantém contexto**
+**Agente não lembra conversa anterior**
 ```
-Verifique se está usando o mesmo session_id nas chamadas
-```
-
-**Banco de dados com erro**
-```bash
-# Remova o banco e deixe ser recriado
-rm /tmp/simple_chatbot.db
+Solução: Verifique se o session_id está sendo passado corretamente
 ```
 
-## Diferenças da versão anterior
+**Respostas muito longas**
+```
+Solução: Ajuste max_tokens no OpenAIChat ou refine as instruções
+```
 
-Esta versão migrada usa AGNO framework:
+## Comparação: Antes vs Agora
 
-| Aspecto | Versão Antiga | Versão AGNO |
-|---------|---------------|-------------|
-| Framework | BaseAgent customizado | AGNO nativo |
-| Memória | SimpleMemory (dict) | SqliteDb (persistente) |
-| Prompts | String única | Lista de instruções |
-| LLM | OpenAI client direto | OpenAIChat (wrapper) |
-| Session | user_id + context | session_id |
+### Antes (LangChain)
+```python
+from langchain import ConversationChain
+chain = ConversationChain(...)
+response = chain.run(input)
+```
 
-## Recursos adicionais
+### Agora (AGNO)
+```python
+from agno.agent import Agent
+agent = Agent(...)
+response = agent.run(input, session_id="user-123")
+```
 
-- [Documentação AGNO](https://docs.agno.com)
-- [AGNO GitHub](https://github.com/agno/agno)
-- Template base: `templates/agentes/base_agent.py`
-- Metodologia: `docs/metodologia/OVERVIEW.md`
+**Vantagens do AGNO:**
+- 🚀 Mais simples e direto
+- 💾 Memória SQLite built-in
+- 🔧 Menos dependências
+- ⚡ Mais rápido e leve
+- 📊 Melhor para produção
+
+## Referências
+
+- **Documentação AGNO:** https://docs.agno.ai
+- **Exemplo avançado:** `templates/agentes/sales_agent.py`
+- **Multi-agent:** `examples/multi-agent-sales/` (CrewAI)

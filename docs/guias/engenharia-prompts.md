@@ -381,7 +381,7 @@ def evaluate_prompt_quality(prompt: str, test_cases: List[Dict]) -> Dict:
 ```markdown
 # Prompt: Sales Agent System Prompt
 
-## v1.0 - 2024-01-15
+## v1.0 - 2025-11-20
 Versão inicial
 
 ## v1.1 - 2024-01-20

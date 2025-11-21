@@ -1,0 +1,9 @@
+# CrewAI Multi-Agent Framework
+crewai>=0.1.0
+crewai[tools]>=0.1.0
+
+# LLM Provider
+openai>=1.50.0
+
+# Utilities
+python-dotenv>=1.0.0

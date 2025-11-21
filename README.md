@@ -1,13 +1,17 @@
 # Template de Agentes de IA para Atendimento Comercial
 
-> Metodologia completa e padronizada para desenvolvimento de soluções de Agentes de IA focadas em atendimento comercial.
+> Metodologia completa e padronizada para desenvolvimento de soluções de Agentes de IA focadas em atendimento comercial usando **AGNO** e **CrewAI**.
+
+**Última atualização:** 2025-11-20
 
 ## 🎯 Visão Geral
 
 Este repositório fornece um framework completo para criar Agentes de IA para atendimento comercial, incluindo:
 
 - **Metodologia estruturada** em 6 processos claros
+- **Frameworks modernos** (AGNO para single-agent, CrewAI para multi-agent)
 - **Templates reutilizáveis** para documentação e código
+- **Exemplos práticos** funcionais e testados
 - **Guias práticos** de implementação
 - **Padrões de arquitetura** testados e validados
 
@@ -106,24 +110,48 @@ cat docs/guias/quick-start.md
 
 ## 🏗️ Padrões de Arquitetura
 
-### Single-Agent
-Para projetos simples (1-3 casos de uso)
+### AGNO (Single-Agent)
+Para projetos simples e focados (1-3 casos de uso)
 ```python
-class SalesAgent(BaseAgent):
-    def process(self, user_input, context):
-        # Lógica do agente
-        pass
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.db.sqlite import SqliteDb
+
+agent = Agent(
+    name="Sales Agent",
+    model=OpenAIChat(id="gpt-4-turbo"),
+    db=SqliteDb(db_file="./data/memory.db"),
+    instructions=["Você é um consultor de vendas...", "..."],
+    tools=[crm_toolkit],
+    add_history_to_context=True
+)
+
+response = agent.run(user_input, session_id="user_123", stream=True)
 ```
 
-### Multi-Agent
-Para projetos complexos
+**Exemplos:** `simple-chatbot/`, `rag-knowledge-base/`, `api-integration-agno/`
+
+### CrewAI (Multi-Agent)
+Para projetos complexos com múltiplas especialidades
+```python
+from crewai import Agent, Task, Crew, Process, LLM
+
+# Manager coordena especialistas
+manager = Agent(role="Manager", allow_delegation=True, ...)
+sales = Agent(role="Sales", allow_delegation=False, ...)
+support = Agent(role="Support", allow_delegation=False, ...)
+
+crew = Crew(
+    agents=[manager, sales, support],
+    tasks=[task],
+    process=Process.hierarchical,  # Manager coordena
+    planning=True
+)
+
+result = crew.kickoff()
 ```
-Router Agent → identifica intenção
-    ├─→ Sales Agent (vendas)
-    ├─→ Support Agent (suporte)
-    ├─→ Product Agent (produtos)
-    └─→ Payment Agent (pagamento)
-```
+
+**Exemplo:** `multi-agent-sales/`
 
 [Ver guia de arquitetura →](docs/guias/criar-agente.md)
 
@@ -214,28 +242,66 @@ Router Agent → identifica intenção
 
 **Target**: Custo por conversa < R$ 10
 
-## 🛠️ Stack Tecnológica Sugerida
+## 🛠️ Stack Tecnológica Recomendada
 
-### Frameworks
-- **LangChain**: Framework completo para LLM apps
-- **LlamaIndex**: Focado em RAG
-- **CrewAI**: Multi-agent orchestration
+### AI Agent Frameworks
+- **AGNO** >= 0.1.0: Single-agent systems (chatbots, RAG, API integration)
+- **CrewAI** >= 0.1.0: Multi-agent orchestration (teams, hierarchical workflows)
 
 ### LLM Providers
-- OpenAI (GPT-4, GPT-3.5)
-- Anthropic (Claude)
-- Open source (Llama, Mistral)
+- **OpenAI** (GPT-4 Turbo, GPT-4o, GPT-4o-mini) - Recomendado
+- Anthropic (Claude Sonnet, Opus)
+- Open source (Llama 3, Mistral)
 
-### Vector Databases
-- Pinecone
-- Weaviate
-- Qdrant
-- ChromaDB
+### Vector Databases (para RAG)
+- **ChromaDB**: Open-source, fácil de usar (recomendado para MVP)
+- Pinecone: Managed, escalável
+- Weaviate: Open-source, completo
+- Qdrant: Performance otimizado
+
+### Memory & Storage
+- **SqliteDb** (AGNO): Desenvolvimento e MVPs
+- PostgresDb (AGNO): Produção
+- Redis: Caching e sessions
 
 ### Monitoramento
-- Prometheus + Grafana
-- LangSmith / LangFuse
-- DataDog / New Relic
+- Prometheus + Grafana (métricas)
+- OpenTelemetry (traces)
+- DataDog / New Relic (APM)
+
+## 💡 Exemplos Práticos
+
+### 1. Simple Chatbot (AGNO)
+Chatbot comercial básico com memória persistente.
+```bash
+cd examples/simple-chatbot
+python main.py
+```
+**Features:** Memória de conversação, streaming, session management
+
+### 2. Multi-Agent Sales (CrewAI)
+Sistema com 4 agentes especializados (Manager, Sales, Support, Product).
+```bash
+cd examples/multi-agent-sales
+python main.py
+```
+**Features:** Processo hierárquico, delegação, planejamento automático
+
+### 3. RAG Knowledge Base (AGNO)
+Sistema Q&A sobre base de conhecimento com RAG.
+```bash
+cd examples/rag-knowledge-base
+python main.py
+```
+**Features:** ChromaDB, embeddings, chunking, hallucination prevention
+
+### 4. API Integration (AGNO)
+Integração com APIs externas (CRM) com retry logic.
+```bash
+cd examples/api-integration-agno
+python main.py
+```
+**Features:** Retry logic, caching, error handling, Pydantic validation
 
 ## 📖 Documentação Adicional
 
@@ -266,32 +332,92 @@ cat docs/guias/quick-start.md
 
 ## 📝 Exemplo de Uso
 
+### Com AGNO (Single-Agent)
+
 ```python
-from agents.base_agent import BaseAgent
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.db.sqlite import SqliteDb
+from agno.tools.toolkit import Toolkit
 
-class MeuAgenteComercial(BaseAgent):
-    def _load_prompts(self):
-        return {
-            "system": "Você é um consultor de vendas...",
-            "greeting": "Olá! Como posso ajudar?"
-        }
+# Criar custom toolkit
+class CRMToolkit(Toolkit):
+    def __init__(self):
+        super().__init__(name="crm_toolkit")
+        self.register(self.search_customer)
+        self.register(self.create_deal)
 
-    def _initialize_tools(self):
-        return [CRMTool(), ProductCatalogTool()]
+    def search_customer(self, email: str) -> str:
+        """Busca cliente por email no CRM"""
+        # Lógica de integração
+        return f"Cliente encontrado: {email}"
 
-    def process(self, user_input, context):
-        # Validar
-        is_valid, error = self.validate_input(user_input)
-        if not is_valid:
-            return {"error": error}
+    def create_deal(self, customer_id: str, value: float) -> str:
+        """Cria nova negociação"""
+        # Lógica de criação
+        return f"Deal criado: R$ {value}"
 
-        # Processar com LLM
-        response = self.llm.generate(...)
+# Configurar agente
+agent = Agent(
+    name="Agente Comercial",
+    model=OpenAIChat(id="gpt-4-turbo"),
+    db=SqliteDb(db_file="./data/memory.db"),
+    instructions=[
+        "Você é um consultor de vendas B2B",
+        "Use metodologia BANT para qualificação",
+        "Sempre busque no CRM antes de criar novo cliente"
+    ],
+    tools=[CRMToolkit()],
+    add_history_to_context=True,
+    num_history_runs=5
+)
 
-        # Aplicar guardrails
-        safe_response, _ = self.apply_guardrails(response, context)
+# Usar
+response = agent.run(
+    "Quero comprar um CRM para 50 pessoas",
+    session_id="user_123",
+    stream=True
+)
+```
 
-        return {"response": safe_response}
+### Com CrewAI (Multi-Agent)
+
+```python
+from crewai import Agent, Task, Crew, Process, LLM
+
+# Agente Manager
+manager = Agent(
+    role="Gerente Comercial",
+    goal="Coordenar equipe de vendas",
+    backstory="Gerente experiente...",
+    allow_delegation=True,
+    llm=LLM(model="gpt-4-turbo")
+)
+
+# Agente Vendedor
+sales = Agent(
+    role="Consultor de Vendas",
+    goal="Qualificar e fechar negócios",
+    backstory="Especialista em BANT...",
+    allow_delegation=False,
+    llm=LLM(model="gpt-4-turbo")
+)
+
+# Tarefa
+task = Task(
+    description="Atender cliente interessado em CRM",
+    expected_output="Proposta comercial completa",
+    agent=manager
+)
+
+# Crew
+crew = Crew(
+    agents=[manager, sales],
+    tasks=[task],
+    process=Process.hierarchical
+)
+
+result = crew.kickoff()
 ```
 
 ## 🎯 Casos de Uso

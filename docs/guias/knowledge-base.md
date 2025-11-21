@@ -138,7 +138,7 @@ documents = [
             "source": "produto_x_manual.pdf",
             "category": "technical",
             "version": "2.0",
-            "last_updated": "2024-01-15"
+            "last_updated": "2025-11-20"
         }
     )
 ]

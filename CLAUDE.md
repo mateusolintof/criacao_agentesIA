@@ -2,9 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Última atualização:** 2025-11-20
+
 ## Project Overview
 
-Este é um template completo e metodologia padronizada para desenvolvimento de **Agentes de IA para Atendimento Comercial**. O framework fornece processos claros, templates reutilizáveis e guias práticos para criar soluções de qualidade em projetos de agentes conversacionais.
+Este é um template completo e metodologia padronizada para desenvolvimento de **Agentes de IA para Atendimento Comercial** usando **AGNO** (single-agent) e **CrewAI** (multi-agent). O framework fornece processos claros, templates reutilizáveis e guias práticos para criar soluções de qualidade em projetos de agentes conversacionais.
 
 ## Metodologia
 
@@ -21,31 +23,77 @@ Consulte `docs/metodologia/OVERVIEW.md` para visão completa.
 
 ## Architecture Patterns
 
-### Single-Agent vs Multi-Agent
+### Framework Selection
 
-**Single Agent**: Use para projetos simples com escopo limitado
-- Mais fácil de implementar
-- Adequado para 1-3 casos de uso
+**AGNO (Single-Agent)**: Use para projetos simples e focados
+- Framework: `agno` >= 0.1.0
+- Casos de uso: Chatbots diretos, RAG, assistentes especializados
+- Adequado para: 1-3 casos de uso bem definidos
+- Exemplos: `examples/simple-chatbot/`, `examples/rag-knowledge-base/`, `examples/api-integration-agno/`
 
-**Multi-Agent**: Use para projetos complexos
-- Router Agent: Identifica intenção e roteia
-- Specialized Agents: Sales, Support, Product, etc
-- Melhor separação de responsabilidades
-- Mais escalável
+**CrewAI (Multi-Agent)**: Use para projetos complexos com múltiplos domínios
+- Framework: `crewai` >= 0.1.0
+- Casos de uso: Equipes de agentes especializados, workflows complexos
+- Adequado para: 4+ especialidades, delegação de tarefas
+- Exemplos: `examples/multi-agent-sales/`
 
-### Base Agent Pattern
+### AGNO Pattern (Single-Agent)
 
-Todos os agentes devem herdar de `BaseAgent`:
+Agentes AGNO seguem este padrão:
 ```python
-from agents.base_agent import BaseAgent
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.db.sqlite import SqliteDb
+from agno.tools.toolkit import Toolkit
 
-class MyAgent(BaseAgent):
-    def _load_prompts(self): ...
-    def _initialize_tools(self): ...
-    def process(self, user_input, context): ...
+# Criar agente
+agent = Agent(
+    name="Meu Agente",
+    model=OpenAIChat(id="gpt-4-turbo"),
+    db=SqliteDb(db_file="./data/memory.db"),
+    instructions=["Instrução 1", "Instrução 2"],  # Lista de strings
+    tools=[my_toolkit],
+    add_history_to_context=True,
+    num_history_runs=5
+)
+
+# Usar com sessão
+response = agent.run(user_input, session_id="user123", stream=True)
 ```
 
-Ver `templates/agentes/base_agent.py` para referência completa.
+Ver `templates/agentes/base_agent.py` e `examples/simple-chatbot/` para referência completa.
+
+### CrewAI Pattern (Multi-Agent)
+
+Sistemas multi-agente com CrewAI:
+```python
+from crewai import Agent, Task, Crew, Process, LLM
+
+# Criar agentes especializados
+manager = Agent(
+    role="Manager",
+    allow_delegation=True,  # Pode delegar
+    llm=LLM(model="gpt-4-turbo")
+)
+
+specialist = Agent(
+    role="Specialist",
+    allow_delegation=False,  # Foca em especialidade
+    llm=LLM(model="gpt-4-turbo")
+)
+
+# Criar crew com processo hierárquico
+crew = Crew(
+    agents=[manager, specialist],
+    tasks=[task],
+    process=Process.hierarchical,  # Manager coordena
+    planning=True
+)
+
+result = crew.kickoff()
+```
+
+Ver `examples/multi-agent-sales/` para referência completa.
 
 ## Project Structure
 
@@ -138,11 +186,35 @@ Sempre implemente:
 - Hallucination detection
 
 ### Memory
-Tipos de memória:
-- **Short-term**: Contexto da conversa atual
-- **Long-term**: Histórico e preferências
-- Use ConversationBufferMemory para começar
-- Evolua para Vector Memory se necessário
+
+**AGNO Memory Management:**
+```python
+from agno.db.sqlite import SqliteDb
+
+# Memória persistente com SQLite
+db = SqliteDb(
+    session_table="conversations",
+    db_file="./data/memory.db"
+)
+
+agent = Agent(
+    db=db,
+    add_history_to_context=True,  # Adiciona histórico ao contexto
+    num_history_runs=5  # Últimas 5 interações
+)
+
+# Usar com session_id para contexto por usuário
+response = agent.run(message, session_id="user_123")
+```
+
+**Tipos de memória:**
+- **Short-term**: Contexto da conversa atual (num_history_runs)
+- **Long-term**: Histórico persistente (SqliteDb ou PostgresDb)
+- **Knowledge**: Base de conhecimento vetorial (ChromaDB para RAG)
+
+**CrewAI Memory:**
+- Usa memória automática entre agentes durante execução
+- Para persistência, integrar com banco externo via custom tools
 
 ## Common Workflows
 
