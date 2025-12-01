@@ -1,3 +1,13 @@
+# ============================================================================
+# PYTHON VERSION REQUIREMENT: 3.10, 3.11, or 3.12 (RECOMMENDED)
+# ============================================================================
+# IMPORTANT: This project requires Python 3.10-3.12
+# Python 3.13+ is NOT fully supported yet by core dependencies (ChromaDB, CrewAI)
+#
+# To check your version: python --version
+# To install Python 3.12: https://www.python.org/downloads/
+# ============================================================================
+
 # Core AI Agent Frameworks
 # Single-Agent Framework (use for simple chatbots, individual agents)
 agno>=0.1.0
@@ -10,15 +20,15 @@ crewai[tools]>=0.1.0
 openai>=1.50.0  # Updated to latest stable version (Nov 2025)
 
 # LLM Providers (optional, uncomment as needed)
-# anthropic==0.8.1
-# google-generativeai==0.3.2
-# cohere==4.37
+# anthropic>=0.40.0
+# google-generativeai>=0.8.0
+# cohere>=5.0.0
 
 # Vector Stores & Embeddings
-chromadb==0.4.22
-faiss-cpu==1.7.4
-# pinecone-client==3.0.0
-# weaviate-client==4.4.0
+chromadb>=0.5.0  # Updated - requires Python <=3.12
+faiss-cpu>=1.9.0  # Updated - 1.7.4 no longer available
+# pinecone-client>=5.0.0
+# weaviate-client>=4.9.0
 
 # Memory & State Management
 redis==5.0.1
@@ -26,12 +36,12 @@ redis==5.0.1
 psycopg2-binary==2.9.9
 
 # API & Web
-fastapi==0.108.0
-uvicorn[standard]==0.25.0
-pydantic==2.5.3
-pydantic-settings==2.1.0
-httpx==0.26.0
-python-multipart==0.0.6
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+httpx>=0.28.0
+python-multipart>=0.0.12
 
 # Async & Background Jobs
 celery==5.3.4
@@ -59,19 +69,19 @@ validators==0.22.0
 email-validator==2.1.0
 
 # Testing
-pytest==7.4.3
-pytest-asyncio==0.23.2
-pytest-cov==4.1.0
-pytest-mock==3.12.0
-httpx-mock==0.7.0
-faker==22.0.0
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+pytest-cov>=6.0.0
+pytest-mock>=3.14.0
+httpx-mock>=0.7.0
+faker>=30.0.0
 
 # Code Quality
-black==23.12.1
-pylint==3.0.3
-mypy==1.8.0
-isort==5.13.2
-flake8==7.0.0
+black>=24.0.0
+pylint>=3.3.0
+mypy>=1.13.0
+isort>=5.13.2
+flake8>=7.0.0
 
 # Development
 ipython==8.19.0
@@ -90,8 +100,8 @@ slowapi==0.1.9
 cachetools==5.3.2
 
 # Data Processing
-pandas==2.1.4
-numpy==1.26.2
+pandas>=2.2.0
+numpy>=1.26.0,<2.0.0  # Keep <2.0 for compatibility
 
 # Optional: Document Processing
 # pypdf2==3.0.1

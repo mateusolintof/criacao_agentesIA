@@ -15,6 +15,36 @@ Este repositório fornece um framework completo para criar Agentes de IA para at
 - **Guias práticos** de implementação
 - **Padrões de arquitetura** testados e validados
 
+## ⚙️ Requisitos do Sistema
+
+### Python Version (IMPORTANTE!)
+
+**Este projeto requer Python 3.10, 3.11 ou 3.12**
+
+```bash
+# Verificar sua versão
+python --version
+
+# ✅ Versões suportadas:
+# Python 3.12.x (RECOMENDADO)
+# Python 3.11.x
+# Python 3.10.x
+
+# ❌ NÃO suportado:
+# Python 3.13+ (ChromaDB e CrewAI ainda não suportam)
+# Python 3.9 ou anterior
+```
+
+**Se você tem Python 3.13+**, siga o guia de instalação: [`docs/guias/python-version-setup.md`](docs/guias/python-version-setup.md)
+
+### Outras Dependências
+
+- Git
+- pip >= 21.0
+- Conexão com internet (para instalar pacotes)
+- 4GB+ RAM recomendado
+- 2GB+ espaço em disco
+
 ## 📋 O Que Você Encontra Aqui
 
 ### Documentação
@@ -37,13 +67,60 @@ templates/
 
 ## 🚀 Quick Start
 
-### 1. Clone este Template
+### Método 1: Setup Automatizado (Recomendado)
+
 ```bash
+# 1. Clone o repositório
 git clone [URL_DESTE_REPO] meu-projeto-agentes
 cd meu-projeto-agentes
+
+# 2. Execute o script de setup (verifica Python, cria venv, instala tudo)
+./scripts/setup-environment.sh
+
+# 3. Edite suas API keys
+nano .env
+
+# 4. Pronto! Teste um exemplo
+cd examples/simple-chatbot
+python main.py
 ```
 
-### 2. Leia a Metodologia
+### Método 2: Setup Manual
+
+#### 1. Clone e Configure Ambiente
+```bash
+# Clone
+git clone [URL_DESTE_REPO] meu-projeto-agentes
+cd meu-projeto-agentes
+
+# Verifique Python version (DEVE ser 3.10-3.12)
+python --version
+
+# Crie ambiente virtual
+python -m venv venv
+
+# Ative
+source venv/bin/activate  # macOS/Linux
+# ou
+.\venv\Scripts\activate  # Windows
+
+# Atualize pip
+pip install --upgrade pip
+
+# Instale dependências
+pip install -r requirements.txt
+```
+
+#### 2. Configure Variáveis de Ambiente
+```bash
+# Copie o exemplo
+cp .env.example .env
+
+# Edite e adicione suas API keys
+nano .env  # ou use seu editor favorito
+```
+
+#### 3. Leia a Metodologia
 ```bash
 # Visão geral
 cat docs/metodologia/OVERVIEW.md
